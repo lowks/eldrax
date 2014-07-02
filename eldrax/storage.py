@@ -7,11 +7,11 @@ from .utils import memoize
 
 
 class Storage(ApiBase):
-    
+
     def __init__(self, *args, **kwargs):
         self.internal = kwargs.pop("internal", False)
         super(Storage, self).__init__(*args, **kwargs)
-    
+
     def _request_kwargs(self, path, **kwargs):
         cdn = kwargs.pop("cdn", False)
         kwargs.setdefault("headers", {})
@@ -23,14 +23,14 @@ class Storage(ApiBase):
             endpoint = endpoints["internal" if self.internal else "public"]
         kwargs["url"] = "{}/{}".format(endpoint, path)
         return kwargs
-    
+
     @memoize
     def __getitem__(self, name):
         c = Container(self, name)
         if not c.exists:
             raise KeyError(name)
         return c
-    
+
     def containers(self):
         L = []
         response = requests.get(**self._request_kwargs(""))
@@ -41,11 +41,11 @@ class Storage(ApiBase):
 
 
 class Container(object):
-    
+
     def __init__(self, storage, name):
         self.storage = storage
         self.name = name
-    
+
     @property
     @memoize
     def attrs(self):
@@ -56,7 +56,8 @@ class Container(object):
             ret.update({
                 "bytes-used": int(response.headers["x-container-bytes-used"]),
             })
-            response = requests.head(**self.storage._request_kwargs(path, cdn=True))
+            response = requests.head(**self.storage._request_kwargs(path,
+                                                                    cdn=True))
             if response.ok:
                 ret.update({
                     "cdn": True,
@@ -69,19 +70,21 @@ class Container(object):
         else:
             response.raise_for_status()
         return ret
-    
+
     @property
     def exists(self):
         return self.attrs["exists"]
-    
+
     def objects(self):
         objs, ret = [], []
+
         def _fetch_page(marker=None):
             path = self.name
             params = dict(format="json")
             if marker:
                 params["marker"] = marker
-            response = requests.get(**self.storage._request_kwargs(path, params=params))
+            response = requests.get(**self.storage._request_kwargs(
+                path, params=params))
             response.raise_for_status()
             return response.json()
         page = _fetch_page()
@@ -103,14 +106,14 @@ class Container(object):
 
 
 class Object(object):
-    
+
     def __init__(self, container, name, **kwargs):
         self.container = container
         self.name = name
         self.storage = self.container.storage
         if "attrs" in kwargs:
             self.__dict__.setdefault("memo", {})[("attrs", ())] = kwargs["attrs"]
-    
+
     @property
     @memoize
     def attrs(self):
@@ -127,28 +130,29 @@ class Object(object):
         else:
             response.raise_for_status()
         return ret
-    
+
     def _get_file_response(self):
         path = "{}/{}".format(self.container.name, self.name)
         response = requests.get(**self.storage._request_kwargs(path))
         response.raise_for_status()
         return response
-    
+
     def iter_content(self, *args, **kwargs):
         return self._get_file_response().iter_content(*args, **kwargs)
-    
+
     @property
     def content(self):
         return self._get_file_response().content
-    
+
     def save(self, data, delete_on=None):
         path = "{}/{}".format(self.container.name, self.name)
         headers = {}
         if delete_on is not None:
             headers["X-Delete-At"] = str(int(time.mktime(delete_on.timetuple())))
-        response = requests.put(**self.storage._request_kwargs(path, headers=headers, data=data))
+        response = requests.put(**self.storage._request_kwargs(
+            path, headers=headers, data=data))
         response.raise_for_status()
-    
+
     def delete(self):
         path = "{}/{}".format(self.container.name, self.name)
         response = requests.delete(**self.storage._request_kwargs(path))

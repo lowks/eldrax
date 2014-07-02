@@ -6,7 +6,7 @@ from .utils import memoize
 
 
 class ApiBase(object):
-    
+
     IDENTITY_URLS = {
         "ORD": "https://identity.api.rackspacecloud.com/v2.0/tokens",
         "DFW": "https://identity.api.rackspacecloud.com/v2.0/tokens",
@@ -14,14 +14,14 @@ class ApiBase(object):
         "SYD": "https://identity.api.rackspacecloud.com/v2.0/tokens",
         "LON": "https://lon.identity.api.rackspacecloud.com/v2.0/tokens",
     }
-    
+
     def __init__(self, username, api_key, region=None):
         self.username = username
         self.api_key = api_key
         if region is not None and region not in self.IDENTITY_URLS:
             raise Exception("invalid Rackspace region")
         self.region = region
-    
+
     @property
     @memoize
     def attrs(self):
@@ -54,12 +54,15 @@ class ApiBase(object):
                     }
             if entry["name"] == "cloudFilesCDN":
                 for endpoint in entry["endpoints"]:
-                    regions = ret["endpoints"].setdefault("cloud-files-cdn", {})
+                    regions = ret["endpoints"].setdefault(
+                        "cloud-files-cdn", {})
                     regions[endpoint["region"]] = endpoint["publicURL"]
             if entry["name"] == "cloudServersOpenStack":
                 for endpoint in entry["endpoints"]:
-                    regions = ret["endpoints"].setdefault("servers", {}).setdefault("opencloud", {})
+                    regions = ret["endpoints"].setdefault(
+                        "servers", {}).setdefault("opencloud", {})
                     regions[endpoint["region"]] = endpoint["publicURL"]
             if entry["name"] == "cloudServers":
-                ret["endpoints"].setdefault("servers", {})["legacy"] = entry["endpoints"][0]["publicURL"]
+                ret["endpoints"].setdefault(
+                    "servers", {})["legacy"] = entry["endpoints"][0]["publicURL"]
         return ret
